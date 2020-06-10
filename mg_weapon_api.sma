@@ -35,29 +35,37 @@ new const gWeaponNumberInSlot[] =
 	2, 2, 7, 4, 5, 6, 11, 3, 2, 1, 10, 1, 1, 8
 }
 
-new Array:arrayWeaponId						// MGW_* see mg_weapon_api_const.inc
-new Array:arrayWeaponViewModel				// The view model of the weapon
-new Array:arrayWeaponPlayerModel			// The outer model of the weapon
-new Array:arrayWeaponWorldModel				// The world model of the weapon
-new Array:arrayWeaponViewBody				// The body of the view model
-new Array:arrayWeaponPlayerBody				// The body of the outer model
-new Array:arrayWeaponWorldBody				// The body of the world model
-new Array:arrayWeaponLangnameFull			// Full name[lang file], mostly used in menus
-new Array:arrayWeaponLangname				// Name[lang file], chat etc.
-new Array:arrayWeaponSprite					// Weapon name, used for weapon sprite file *.txt
-new Array:arrayWeaponBaseWeapon				// Weapon type this weapon's based on, see cstrike_const.inc(CSW_*)
-new Array:arrayWeaponAnimShift				// How many times shift the animations
-new Array:arrayWeaponFlags					// Weapon flags, see mg_weapon_api_const.inc(MGW_FLAG_*)
-new Array:arrayWeaponPrimaryAmmoType		// Primary ammo type, see MGW_AMNMO_* in mg_weapon_api_const.inc
-new Array:arrayWeaponPrimaryAmmoBPMax		// Maximum carriable primary ammo
-new Array:arrayWeaponPrimaryAmmoClip		// Max primary clip ammo
-new Array:arrayWeaponSecondaryAmmoType		// Secondary ammo type, see MGW_AMNMO_* in mg_weapon_api_const.inc
-new Array:arrayWeaponSecondaryAmmoBPMax		// Maximum carriable secondary ammo
+new Array:arrayWeaponId							// MGW_* see mg_weapon_api_const.inc
+new Array:arrayWeaponViewModel					// The view model of the weapon
+new Array:arrayWeaponPlayerModel				// The outer model of the weapon
+new Array:arrayWeaponWorldModel					// The world model of the weapon
+new Array:arrayWeaponViewBody					// The body of the view model
+new Array:arrayWeaponPlayerBody					// The body of the outer model
+new Array:arrayWeaponWorldBody					// The body of the world model
+new Array:arrayWeaponLangnameFull				// Full name[lang file], mostly used in menus
+new Array:arrayWeaponLangname					// Name[lang file], chat etc.
+new Array:arrayWeaponSprite						// Weapon name, used for weapon sprite file *.txt
+new Array:arrayWeaponBaseWeapon					// Weapon type this weapon's based on, see cstrike_const.inc(CSW_*)
+new Array:arrayWeaponAnimShift					// How many times shift the animations
+new Array:arrayWeaponFlags						// Weapon flags, see mg_weapon_api_const.inc(MGW_FLAG_*)
+
+new Array:arrayWeaponExSpeed					// The time delay between shoots
+new Array:arrayWeaponExDamage					// The regular done by the weapon
+new Array:arrayweaponExRecoil					// The recoil rate of the weapon
+new Array:arrayWeaponExReloadTime				// The time needed to reload with this weapon
+new Array:arrayWeaponExPrimaryAmmoType			// Primary ammo type, see MGW_AMNMO_* in mg_weapon_api_const.inc
+new Array:arrayWeaponExPrimaryAmmoBPMax			// Maximum carriable primary ammo
+new Array:arrayWeaponExPrimaryAmmoClip			// Max primary clip ammo
+new Array:arrayWeaponExSecondaryAmmoType		// Secondary ammo type, see MGW_AMNMO_* in mg_weapon_api_const.inc
+new Array:arrayWeaponExSecondaryAmmoBPMax		// Maximum carriable secondary ammo
+
+new Array:arrayWeaponSfxPrimAttack				// Primary attack sfx list
+new Array:arrayWeaponSfxSecAttack				// Secondary attack sfx list
 
 new Array:arrayUserWeaponList[33]
 
-new Trie:trieDefaultWeaponModelList			// Using trie for faster string search(get the classname by model)
-new Trie:trieDefaultWeaponIdList			// Using trie for faster string search(get the class id by classname)
+new Trie:trieDefaultWeaponModelList				// Using trie for faster string search(get the classname by model)
+new Trie:trieDefaultWeaponIdList				// Using trie for faster string search(get the class id by classname)
 
 new gUserWeapons[33][MGW_BITFIELDCOUNT]
 
@@ -68,7 +76,7 @@ public plugin_init()
 	register_forward(FM_SetModel, "fwFmSetModel")
 }
 
-public plugin_natives()
+public plugin_precache()
 {
 	arrayWeaponId = ArrayCreate(1)
 	arrayWeaponViewModel = ArrayCreate(96)
@@ -149,8 +157,12 @@ public plugin_natives()
 	TrieSetCell(trieDefaultWeaponIdList, "weapon_ump45", CSW_UMP45)
 	TrieSetCell(trieDefaultWeaponIdList, "weapon_usp", CSW_USP)
 	TrieSetCell(trieDefaultWeaponIdList, "weapon_xm1014", CSW_XM1014)
+}
 
+public plugin_natives()
+{
 	register_native("mg_weapon_register", "native_weapon_register")
+	register_native("mg_weapon_registerex", "native_weapon_registerex")
 	register_native("mg_weapon_user_has", "native_weapon_user_has")
 	register_native("mg_weapon_user_get", "native_weapon_user_get")
 	register_native("mg_weapon_user_get_all", "native_weapon_user_get_all")
@@ -208,6 +220,11 @@ public native_weapon_register(plugin_id, param_num)
 	ArrayPushCell(arrayWeaponSecondaryAmmoBPMax, lWeaponSecondaryAmmoBPMax)
 
 	return true
+}
+
+public native_weapon_registerex(plugin_id, param_num)
+{
+	new lWeaponId, 
 }
 
 public native_weapon_user_has(plugin_id, param_num)
