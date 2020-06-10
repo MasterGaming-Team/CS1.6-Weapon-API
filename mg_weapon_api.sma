@@ -223,13 +223,18 @@ public native_weapon_user_get_all(plugin_id, param_num)
 public fwFmSetModel(ent, model[])
 {
 	static lClassName[32]
+	lClassName[0] = EOS
+
 	entity_get_string(ent, EV_SZ_classname, lClassName, charsmax(lClassName))
 
 	if(!equal(lClassName, "weaponbox"))
 		return FMRES_IGNORED
 
 	static weapon
-	weapon = getWeaponEnt(ent, model)
+
+	lClassName[0] = EOS
+	TrieGetString(trieDefaultWeaponModelList, model, lClassName, charsmax(lClassName))
+	weapon = find_ent_by_owner(-1, lClassName, ent)
 
 	if(!is_valid_ent(weapon))
 		return FMRES_IGNORED
@@ -281,15 +286,6 @@ getUserCurrentWeapon(id)
 userHasWeapon(id, weaponId)
 {
 	return gUserWeapons[id][weaponId/32] & (1<<(weaponId % 32))
-}
-
-getWeaponEnt(ent, const model[])
-{
-	static lClassName[32]
-
-	TrieGetString(trieDefaultWeaponModelList, model, lClassName, charsmax(lClassName))
-
-	return find_ent_by_owner(-1, lClassName, ent)
 }
 
 getUserWeaponByDefaultId(id, weaponId)
