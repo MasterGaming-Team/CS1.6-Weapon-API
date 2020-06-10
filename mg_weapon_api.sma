@@ -57,7 +57,7 @@ new Array:arrayWeaponSecondaryAmmoBPMax		// Maximum carriable secondary ammo
 new Array:arrayUserWeaponList[33]
 
 new Trie:trieDefaultWeaponModelList			// Using trie for faster string search(get the classname by model)
-new Trie:trieDefaultWeaponIdList //INNENNNN
+new Trie:trieDefaultWeaponIdList			// Using trie for faster string search(get the class id by classname)
 
 new gUserWeapons[33][MGW_BITFIELDCOUNT]
 
@@ -90,6 +90,7 @@ public plugin_natives()
 	arrayWeaponSecondaryAmmoBPMax = ArrayCreate(1)
 
 	trieDefaultWeaponModelList = TrieCreate()
+	trieDefaultWeaponIdList = TrieCreate()
 
 	TrieSetString(trieDefaultWeaponModelList, "models/w_ak47.mdl", "weapon_ak47")
 	TrieSetString(trieDefaultWeaponModelList, "models/w_aug.mdl", "weapon_aug")
@@ -119,6 +120,35 @@ public plugin_natives()
 	TrieSetString(trieDefaultWeaponModelList, "models/w_ump45.mdl", "weapon_ump45")
 	TrieSetString(trieDefaultWeaponModelList, "models/w_usp.mdl", "weapon_usp")
 	TrieSetString(trieDefaultWeaponModelList, "models/w_xm1014.mdl", "weapon_xm1014")
+
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_ak47", CSW_AK47)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_aug", CSW_AUG)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_awp", CSW_AWP)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_deagle", CSW_DEAGLE)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_elite", CSW_ELITE)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_famas", CSW_FAMAS)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_fiveseven", CSW_FIVESEVEN)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_flashbang", CSW_FLASHBANG)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_g3sg1", CSW_G3SG1)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_galil", CSW_GALIL)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_glock18", CSW_GLOCK18)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_hegrenade", CSW_HEGRENADE)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_knife", CSW_KNIFE)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_m3", CSW_M3)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_m4a1", CSW_M4A1)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_m249", CSW_M249)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_mac10", CSW_MAC10)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_mp5navy", CSW_MP5NAVY)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_p90", CSW_P90)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_p228", CSW_P228)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_scout", CSW_SCOUT)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_sg550", CSW_SG550)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_sg552", CSW_SG552)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_smokegrenade", CSW_SMOKEGRENADE)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_tmp", CSW_TMP)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_ump45", CSW_UMP45)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_usp", CSW_USP)
+	TrieSetCell(trieDefaultWeaponIdList, "weapon_xm1014", CSW_XM1014)
 
 	register_native("mg_weapon_register", "native_weapon_register")
 	register_native("mg_weapon_user_has", "native_weapon_user_has")
@@ -223,33 +253,49 @@ public native_weapon_user_get_all(plugin_id, param_num)
 public fwFmSetModel(ent, model[])
 {
 	static lClassName[32]
+	lClassName = EOS
+
 	entity_get_string(ent, EV_SZ_classname, lClassName, charsmax(lClassName))
 
 	if(!equal(lClassName, "weaponbox"))
 		return FMRES_IGNORED
 
-	static weapon
-	weapon = getWeaponEnt(ent, model)
+	static lWeapon
 
-	if(!is_valid_ent(weapon))
+	TrieGetString(trieDefaultWeaponModelList, model, lClassName, charsmax(lClassName))
+
+	lWeaponEnt = find_ent_by_owner(-1, lClassName, ent)
+
+	if(!is_valid_ent(lWeaponEnt))
 		return FMRES_IGNORED
 	
-	static lWeaponId
-	lWeaponId = getUserWeaponByDefaultId(id, cs_get_weapon_id(weapon))
+	static lBaseWeaponId, lWeaponId, lWeaponWorldModel[96]
+	lWeaponWorldModel[0] = EOS
+	
+	TrieGetCell(trieDefaultWeaponIdList, lClassName, lBaseWeaponId)
+	lWeaponId = getUserWeaponByDefaultId(id, lBaseWeaponId)
 
-	entity_set_int(weapon, EV_INT_impulse, getUserWeaponByDefaultId(id, cs_get_weapon_id(weapon)))
-	entity_set_model(ent, )
-			set_pev(weapon, pev_impulse, WEAPON_SECRETCODE)
-			engfunc(EngFunc_SetModel, entity, W_MODEL)
-			set_pev(entity, pev_body, W_MODEL_BODY)
-			
-			msg_reset_player_weapon_sprite(iOwner, CSW_MAVERICKK1A)
-			cs_reset_player_view_model(iOwner, CSW_MAVERICKK1A)
-			cs_reset_player_weap_model(iOwner, CSW_MAVERICKK1A)
-			
-			flag_unset(g_HasWeapon, iOwner)
-			
-			return FMRES_SUPERCEDE
+	if(lWeaponId == MGW_INVALID)
+		return FMRES_IGNORED
+
+	static lArrayId
+	lArrayId = ArrayFindValue(arrayWeaponId, lWeaponId)
+
+	if(lArrayId == -1)
+	{
+		log_amx("[SETMODEL] Invalid Weapon ID! (This message should not be written!!!) [%d]", lWeaponId)
+		return FMRES_IGNORED
+	}
+
+	ArrayGetString(arrayWeaponWorldModel, ArrayFindValue(arrayWeaponId, lWeaponId))
+
+	entity_set_int(lWeaponEnt, EV_INT_impulse, lWeaponId)
+	entity_set_model(ent, arrayWeaponWorldModel)
+	entity_set_int(ent, ArrayGetCell(arrayWeaponWorldBody, lArrayId))
+
+	removeUserWeaponData(entity_get_edict(ent, EV_ENT_owner), lWeaponId)
+
+	return FMRES_SUPERCEDE
 }
 
 public client_putinserver(id)
@@ -283,16 +329,7 @@ userHasWeapon(id, weaponId)
 	return gUserWeapons[id][weaponId/32] & (1<<(weaponId % 32))
 }
 
-getWeaponEnt(ent, const model[])
-{
-	static lClassName[32]
-
-	TrieGetString(trieDefaultWeaponModelList, model, lClassName, charsmax(lClassName))
-
-	return find_ent_by_owner(-1, lClassName, ent)
-}
-
-getUserWeaponByDefaultId(id, weaponId)
+getUserWeaponByDefaultId(id, baseWeaponId)
 {
 	new lArraySize = arrayUserWeaponList[id]
 
@@ -302,12 +339,29 @@ getUserWeaponByDefaultId(id, weaponId)
 	{
 		lWeaponId = ArrayGetCell(arrayUserWeaponList[id], i)
 
-		if(ArrayGetCell(arrayWeaponBaseWeapon, lWeaponId) == weaponId)
+		if(ArrayGetCell(arrayWeaponBaseWeapon, lWeaponId) == baseWeaponId)
 			return ArrayGetCell(arrayWeaponId, lWeaponId)
 	}
 
-	return -1
+	return MGW_INVALID
 }
+
+removeUserWeaponData(id, weaponId)
+{
+	if(!is_user_connected(id))
+		return false
+	
+	static lArrayId
+
+	lArrayId = ArrayFindValue(arrayWeaponId, weaponId)
+	gUserWeapons[id][weaponId/32] &= ~(1<<(weaponId % 32))
+
+	if(lArrayId == -1)
+		return true
+	
+	return true
+}
+
 /* AMXX-Studio Notes - DO NOT MODIFY BELOW HERE
 *{\\ rtf1\\ ansi\\ deff0{\\ fonttbl{\\ f0\\ fnil Tahoma;}}\n\\ viewkind4\\ uc1\\ pard\\ lang1066\\ f0\\ fs16 \n\\ par }
 */
