@@ -481,6 +481,27 @@ public client_disconnected(id)
 	ArrayDestroy(arrayUserWeaponList[id])
 }
 
+public client_command(id)
+{
+	if(!is_user_alive(id))
+		return PLUGIN_CONTINUE
+	
+	static lCommand[64], lArrayId
+	read_argv(0, lCommand, charsmax(lCommand))
+	remove_quotes(lCommand)
+	
+	lArrayId = ArrayFindString(arrayWeaponSprite, lCommand)
+	
+	if(lArrayId == -1)
+		return PLUGIN_CONTINUE
+	
+	if(!userHasWeapon(id, ArrayGetCell(arrayWeaponId, lArrayId)))
+		return PLUGIN_CONTINUE
+	
+	engclient_cmd(id, gWeaponNameList[ArrayGetCell(arrayUserWeaponId[id], lArrayId)])
+	return PLUGIN_HANDLED
+}
+
 getUserCurrentWeapon(id)
 {
 	new lCurrentBaseWeapon = get_user_weapon(id)
