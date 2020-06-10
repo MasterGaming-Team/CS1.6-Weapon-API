@@ -5,6 +5,7 @@
 #include <cstrike>
 #include <engine>
 #include <fakemeta>
+#include <fun>
 #include <mg_weapon_api_const>
 
 #define PLUGIN "[MG] Weapon API"
@@ -175,6 +176,8 @@ public plugin_natives()
 	register_native("mg_weapon_user_has", "native_weapon_user_has")
 	register_native("mg_weapon_user_get", "native_weapon_user_get")
 	register_native("mg_weapon_user_get_all", "native_weapon_user_get_all")
+	register_native("mg_weapon_user_get_arrayhandler", "native_weapon_user_get_arrayhandler")
+	register_native("mg_weapon_user_give", "native_weapon_user_give")
 }
 
 public native_weapon_register(plugin_id, param_num)
@@ -216,18 +219,18 @@ public native_weapon_register(plugin_id, param_num)
 	ArrayPushCell(arrayWeaponBaseWeapon, lWeaponBaseWeapon)
 	ArrayPushCell(arrayWeaponAnimShift, lWeaponAnimShift)
 	ArrayPushCell(arrayWeaponFlags, lWeaponFlags)
-	// For safety we set all the other arrays to zero
-	ArrayPushCell(arrayWeaponExSpeed, 0.0)
-	ArrayPushCell(arrayWeaponExDamage, 0.0)
-	ArrayPushCell(arrayWeaponExRecoil, 0.0)
-	ArrayPushCell(arrayWeaponExReloadTime, 0.0)
-	ArrayPushCell(arrayWeaponExPrimaryAmmoType, 0)
-	ArrayPushCell(arrayWeaponExPrimaryAmmoBPMax, 0)
-	ArrayPushCell(arrayWeaponExPrimaryAmmoClip, 0)
-	ArrayPushCell(arrayWeaponExSecondaryAmmoType, 0)
-	ArrayPushCell(arrayWeaponExSecondaryAmmoBPMax, 0)
-	ArrayPushCell(arrayWeaponSfxPrimAttack, 0)
-	ArrayPushCell(arrayWeaponSfxSecAttack, 0)
+	// For safety we set all the other arrays to null
+	ArrayPushCell(arrayWeaponExSpeed, -1.0)
+	ArrayPushCell(arrayWeaponExDamage, -1.0)
+	ArrayPushCell(arrayWeaponExRecoil, -1.0)
+	ArrayPushCell(arrayWeaponExReloadTime, -1.0)
+	ArrayPushCell(arrayWeaponExPrimaryAmmoType, -1)
+	ArrayPushCell(arrayWeaponExPrimaryAmmoBPMax, -1)
+	ArrayPushCell(arrayWeaponExPrimaryAmmoClip, -1)
+	ArrayPushCell(arrayWeaponExSecondaryAmmoType, -1)
+	ArrayPushCell(arrayWeaponExSecondaryAmmoBPMax, -1)
+	ArrayPushCell(arrayWeaponSfxPrimAttack, -1)
+	ArrayPushCell(arrayWeaponSfxSecAttack, -1)
 
 	return true
 }
@@ -239,7 +242,7 @@ public native_weapon_registerex(plugin_id, param_num)
 
 	if(lArradId == -1)
 	{
-		log_amx("[REGISTEREXTRA] weapon was not found! (%d)", lWeaponId)
+		log_amx("[REGISTEREXTRA] Weapon was not found! (%d)", lWeaponId)
 		return false
 	}
 
@@ -277,7 +280,7 @@ public native_weapon_registersfx(plugin_id, param_num)
 
 	if(lArradId == -1)
 	{
-		log_amx("[REGISTEREXTRA] weapon was not found! (%d)", lWeaponId)
+		log_amx("[REGISTERSFX] Weapon was not found! (%d)", lWeaponId)
 		return false
 	}
 
@@ -349,6 +352,12 @@ public fwFmSetModel(ent, model[])
 	if(!is_valid_ent(lWeaponEnt))
 		return FMRES_IGNORED
 	
+	static lOwner
+	lOwner = entity_get_edict(ent, EV_ENT_owner)
+
+	if(!is_user_connected(lOwner))
+		return FMRES_IGNORED
+
 	static lBaseWeaponId, lWeaponId, lWeaponWorldModel[96]
 	lWeaponWorldModel[0] = EOS
 	
@@ -363,7 +372,7 @@ public fwFmSetModel(ent, model[])
 
 	if(lArrayId == -1)
 	{
-		log_amx("[SETMODEL] Invalid Weapon ID! (This message should not be written!!!) [%d]", lWeaponId)
+		log_amx("[SETMODEL] Invalid Weapon ID! (This message should not appear!!!) [%d]", lWeaponId)
 		return FMRES_IGNORED
 	}
 
@@ -373,7 +382,7 @@ public fwFmSetModel(ent, model[])
 	entity_set_model(ent, arrayWeaponWorldModel)
 	entity_set_int(ent, ArrayGetCell(arrayWeaponWorldBody, lArrayId))
 
-	removeUserWeaponData(entity_get_edict(ent, EV_ENT_owner), lWeaponId)
+	removeUserWeaponData(lOwner, lWeaponId)
 
 	return FMRES_SUPERCEDE
 }
@@ -434,12 +443,75 @@ removeUserWeaponData(id, weaponId)
 	static lArrayId
 
 	lArrayId = ArrayFindValue(arrayWeaponId, weaponId)
+
+	if(lArrayId == -1 && gUserWeapons[id][weaponId/32] & (1<<(weaponId % 32)))
+	{
+		log_amx("[REMOVEWEAPONDATA] !!WARNING!! Weapon dynamic array and weapon list are not synchronized!! (%d)", weaponId)
+	}
+
 	gUserWeapons[id][weaponId/32] &= ~(1<<(weaponId % 32))
 
 	if(lArrayId == -1)
 		return true
-	
+
+	ArrayDeleteItem(arrayUserWeaponList[id], lArrayId)
+
 	return true
+}
+
+giveUserWeaponData(id, weaponId)
+{
+	if(!is_user_connected(id))
+		return false
+
+	static lArrayId
+
+	lArrayId = ArrayFindValue(arrayWeaponId, weaponId)
+
+	if(lArrayId != -1 && !(gUserWeapons[id][weaponId/32] & (1<<(weaponId % 32))))
+	{
+		log_amx("[GIVEWEAPONDATA] !!WARNING!! Weapon dynamic array and weapon list are not synchronized!! (%d)", weaponId)
+	}
+
+	gUserWeapons[id][weaponId/32] |= (1<<(weaponId % 32))
+
+	if(lArrayId != -1)
+		return true
+
+	ArrayPushCell(arrayUserWeaponList[id], lArrayId)
+
+	return true
+}
+
+giveUserWeapon(id, weaponId)
+{
+	if(!is_user_alive(id))
+		return false
+	
+	if(userHasWeapon(id weaponId))
+		return false
+	
+	new lArrayId = ArrayGetCell(arrayWeaponId, weaponId)
+
+	if(lArrayId == -1)
+	{
+		log_amx("[GIVEUSERWEAPON] Weapon is not registered! (%d)", weaponId)
+		return false
+	}
+
+	new lBaseWeaponName[32]
+	get_weaponname(ArrayGetCell(arrayWeaponBaseWeapon, lArrayId), lBaseWeaponName, charsmax(lBaseWeaponName))
+
+	if(give_item(id, lBaseWeaponName))
+	{
+		giveUserWeaponData(id, weaponId)
+		return true
+	}
+	else
+	{
+		log_amx("[GIVEUSERWEAPON] Could not give weapon with command: ^"give_item(%d, %s)^"", id, lBaseWeaponName)
+		return false
+	}
 }
 
 /* AMXX-Studio Notes - DO NOT MODIFY BELOW HERE
