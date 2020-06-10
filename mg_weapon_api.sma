@@ -50,7 +50,8 @@ new Array:arrayWeaponBaseWeapon					// Weapon type this weapon's based on, see c
 new Array:arrayWeaponAnimShift					// How many times shift the animations
 new Array:arrayWeaponFlags						// Weapon flags, see mg_weapon_api_const.inc(MGW_FLAG_*)
 
-new Array:arrayWeaponExSpeed					// The time delay between shoots
+new Array:arrayWeaponExPrimSpeed				// The time delay between primary attacks
+new Array:arrayWeaponExSecSpeed					// The time delay between secondary attacks
 new Array:arrayWeaponExDamage					// The regular done by the weapon
 new Array:arrayweaponExRecoil					// The recoil rate of the weapon
 new Array:arrayWeaponExReloadTime				// The time needed to reload with this weapon
@@ -93,7 +94,8 @@ public plugin_precache()
 	arrayWeaponAnimShift = ArrayCreate(1)
 	arrayWeaponFlags = ArrayCreate(1)
 
-	arrayWeaponExSpeed = ArrayCreate(1)
+	arrayWeaponExPrimSpeed = ArrayCreate(1)
+	arrayWeaponExSecSpeed = ArrayCreate(1)
 	arrayWeaponExDamage = ArrayCreate(1)
 	arrayweaponExRecoil = ArrayCreate(1)
 	arrayWeaponExReloadTime = ArrayCreate(1)
@@ -220,7 +222,8 @@ public native_weapon_register(plugin_id, param_num)
 	ArrayPushCell(arrayWeaponAnimShift, lWeaponAnimShift)
 	ArrayPushCell(arrayWeaponFlags, lWeaponFlags)
 	// For safety we set all the other arrays to null
-	ArrayPushCell(arrayWeaponExSpeed, -1.0)
+	ArrayPushCell(arrayWeaponExPrimSpeed, -1.0)
+	ArrayPushCell(arrayWeaponExSecSpeed, -1.0)
 	ArrayPushCell(arrayWeaponExDamage, -1.0)
 	ArrayPushCell(arrayWeaponExRecoil, -1.0)
 	ArrayPushCell(arrayWeaponExReloadTime, -1.0)
@@ -246,21 +249,23 @@ public native_weapon_registerex(plugin_id, param_num)
 		return false
 	}
 
-	new Float:lWeaponExSpeed, Float:lWeaponExDamage, Float:lWeaponExRecoil, Float:lWeaponReloadTime
+	new Float:lWeaponExPrimSpeed, FLoat:lWeaponExSecSpeed, Float:lWeaponExDamage, Float:lWeaponExRecoil, Float:lWeaponReloadTime
 	new lWeaponExPrimaryAmmoType, lWeaponExPrimaryAmmoBPMax, lWeaponExPrimaryAmmoClip
 	new lWeaponExSecondaryAmmoType, lWeaponExSecondaryAmmoBPMax
 
-	lWeaponExSpeed = get_param_f(2)
-	lWeaponExDamage = get_param_f(3)
-	lWeaponExRecoil = get_param_f(4)
-	lWeaponReloadTime = get_param_f(5)
-	lWeaponExPrimaryAmmoType = get_param(6)
-	lWeaponExPrimaryAmmoBPMax = get_param(7)
-	lWeaponExPrimaryAmmoClip = get_param(8)
-	lWeaponExSecondaryAmmoType = get_param(9)
-	lWeaponExSecondaryAmmoBPMax = get_param(10)
+	lWeaponExPrimSpeed = get_param_f(2)
+	lWeaponExSecSpeed = get_param_f(3)
+	lWeaponExDamage = get_param_f(4)
+	lWeaponExRecoil = get_param_f(5)
+	lWeaponReloadTime = get_param_f(6)
+	lWeaponExPrimaryAmmoType = get_param(7)
+	lWeaponExPrimaryAmmoBPMax = get_param(8)
+	lWeaponExPrimaryAmmoClip = get_param(9)
+	lWeaponExSecondaryAmmoType = get_param(10)
+	lWeaponExSecondaryAmmoBPMax = get_param(11)
 
-	ArraySetCell(arrayWeaponExSpeed, lArrayId, lWeaponExSpeed)
+	ArraySetCell(arrayWeaponExPrimSpeed, lArrayId, lWeaponExPrimSpeed)
+	ArraySetCell(arrayWeaponExSecSpeed, lArrayId, lWeaponExSecSpeed)
 	ArraySetCell(arrayWeaponExDamage, lArrayId, lWeaponExDamage)
 	ArraySetCell(arrayWeaponExRecoil, lArrayId, lWeaponExRecoil)
 	ArraySetCell(arrayWeaponExReloadTime, lArrayId, lWeaponExReloadTime)
@@ -291,6 +296,8 @@ public native_weapon_registersfx(plugin_id, param_num)
 
 	ArraySetCell(arrayWeaponSfxPrimAttack, lArrayId, lWeaponSfxPrimAttack)
 	ArraySetCell(arrayWeaponSfxSecAttack, lArrayId, lWeaponSfxSecAttack)
+	
+	return true
 }
 
 public native_weapon_user_has(plugin_id, param_num)
@@ -331,6 +338,18 @@ public native_weapon_user_get_all(plugin_id, param_num)
 	set_array(2, gUserWeapons[id], MGW_BITFIELDCOUNT)
 
 	return true
+}
+
+public native_weapon_user_give(plugin_id, param_num)
+{
+	new id = get_param(1)
+
+	if(!is_user_alive(id))
+		return false
+	
+	new lWeaponId = get_param(2)
+
+	return giveUserWeapon(id, lWeaponId)
 }
 
 public fwFmSetModel(ent, model[])
@@ -459,7 +478,7 @@ removeUserWeaponData(id, weaponId)
 	return true
 }
 
-giveUserWeaponData(id, weaponId)
+setUserWeaponData(id, weaponId)
 {
 	if(!is_user_connected(id))
 		return false
@@ -504,7 +523,7 @@ giveUserWeapon(id, weaponId)
 
 	if(give_item(id, lBaseWeaponName))
 	{
-		giveUserWeaponData(id, weaponId)
+		setUserWeaponData(id, weaponId)
 		return true
 	}
 	else
