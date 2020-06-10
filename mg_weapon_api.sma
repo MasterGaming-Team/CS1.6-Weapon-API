@@ -503,9 +503,6 @@ removeUserWeaponData(id, weaponId)
 
 stripUserWeapon(id, weaponId, baseWeaponId = CSW_NONE)
 {
-	if(!is_user_alive(id))
-		return false
-	
 	new lArrayId = ArrayFindValue(arrayWeaponId, weaponId)
 
 	if(lArrayId == -1)
