@@ -25,7 +25,7 @@
  *
  * @return			False if the weapon's already registered.
  */
-native mg_weapon_register(weaponId, const viewModel[], const playerModel[], const worldModel[], viewBody, playerBody, worldBody, const, const langnameFull[],
+native mg_weapon_register(weaponId, const viewModel[], const playerModel[], const worldModel[], viewBody, playerBody, worldBody, const langnameFull[],
             const langname[], const spr[] = "none", baseWeapon, animShift = 0, flags = -1);
 
 /*

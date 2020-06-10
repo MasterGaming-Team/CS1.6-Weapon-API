@@ -6,6 +6,7 @@
 #include <engine>
 #include <fakemeta>
 #include <fun>
+#include <hamsandwich>
 #include <mg_weapon_api_const>
 
 #define PLUGIN "[MG] Weapon API"
@@ -71,11 +72,16 @@ new Trie:trieDefaultWeaponIdList				// Using trie for faster string search(get t
 
 new gUserWeapons[33][MGW_BITFIELDCOUNT]
 
+new gForwardWeaponUserWeaponGet, gForwardWeaponUserWeaponLost
+
 public plugin_init()
 {
 	register_plugin(PLUGIN, VERSION, AUTHOR)
 	
 	register_forward(FM_SetModel, "fwFmSetModel")
+
+	gForwardWeaponUserWeaponGet = CreateMultiForward("mg_fw_weapon_user_weapon_get", ET_CONTINUE, FP_CELL, FP_CELL)
+	gForwardWeaponUserWeaponLost = CreateMultiForward("mg_fw_weapon_user_weapon_lost", ET_CONTINUE, FP_CELL, FP_CELL)
 }
 
 public plugin_precache()
@@ -180,6 +186,7 @@ public plugin_natives()
 	register_native("mg_weapon_user_get_all", "native_weapon_user_get_all")
 	register_native("mg_weapon_user_get_arrayhandler", "native_weapon_user_get_arrayhandler")
 	register_native("mg_weapon_user_give", "native_weapon_user_give")
+	register_native("mg_weapon_user_strip", "native_weapon_user_strip")
 }
 
 public native_weapon_register(plugin_id, param_num)
@@ -296,7 +303,7 @@ public native_weapon_registersfx(plugin_id, param_num)
 
 	ArraySetCell(arrayWeaponSfxPrimAttack, lArrayId, lWeaponSfxPrimAttack)
 	ArraySetCell(arrayWeaponSfxSecAttack, lArrayId, lWeaponSfxSecAttack)
-	
+
 	return true
 }
 
@@ -350,6 +357,20 @@ public native_weapon_user_give(plugin_id, param_num)
 	new lWeaponId = get_param(2)
 
 	return giveUserWeapon(id, lWeaponId)
+}
+
+public native_weapon_user_strip(plugin_id, param_num)
+{
+	new id = get_param(1)
+
+	if(!is_user_alive(id))
+		return false
+
+	new lWeaponId = get_param(2)
+
+	stripUserWeapon(id, lWeaponId)
+	
+	return true
 }
 
 public fwFmSetModel(ent, model[])
@@ -467,6 +488,8 @@ removeUserWeaponData(id, weaponId)
 	{
 		log_amx("[REMOVEWEAPONDATA] !!WARNING!! Weapon dynamic array and weapon list are not synchronized!! (%d)", weaponId)
 	}
+	
+	ExecuteForward(gForwardWeaponUserWeaponLost, retValue, id, weaponId)
 
 	gUserWeapons[id][weaponId/32] &= ~(1<<(weaponId % 32))
 
@@ -478,12 +501,41 @@ removeUserWeaponData(id, weaponId)
 	return true
 }
 
+stripUserWeapon(id, weaponId, baseWeaponId = CSW_NONE)
+{
+	if(!is_user_alive(id))
+		return false
+	
+	new lArrayId = ArrayFindValue(arrayWeaponId, weaponId)
+
+	if(lArrayId == -1)
+	{
+		log_amx("[REMOVEWEAPON] This weapon is not registered! (%d)", weaponId)
+		
+		if(baseWeaponId == CSW_NONE)
+			return false
+		else
+		{
+			ham_strip_user_weapon(id, baseWeaponId)
+			return true
+		}
+	}
+
+	if(baseWeaponId == CSW_NONe)
+		baseWeaponId = ArrayGetCell(arrayWeaponBaseWeapon, weaponId)
+	
+	ham_strip_user_weapon(id, baseWeaponId)
+	removeUserWeaponData(id, weaponId)
+
+	return true
+}
+
 setUserWeaponData(id, weaponId)
 {
 	if(!is_user_connected(id))
 		return false
 
-	static lArrayId
+	static lArrayId, retValue
 
 	lArrayId = ArrayFindValue(arrayWeaponId, weaponId)
 
@@ -491,6 +543,8 @@ setUserWeaponData(id, weaponId)
 	{
 		log_amx("[GIVEWEAPONDATA] !!WARNING!! Weapon dynamic array and weapon list are not synchronized!! (%d)", weaponId)
 	}
+
+	ExecuteForward(gForwardWeaponUserWeaponGet, retValue, id, weaponId)
 
 	gUserWeapons[id][weaponId/32] |= (1<<(weaponId % 32))
 
@@ -518,8 +572,16 @@ giveUserWeapon(id, weaponId)
 		return false
 	}
 
-	new lBaseWeaponName[32]
-	get_weaponname(ArrayGetCell(arrayWeaponBaseWeapon, lArrayId), lBaseWeaponName, charsmax(lBaseWeaponName))
+	new lBaseWeaponId, lWeaponId, lBaseWeaponName[32]
+	lBaseWeaponId = ArrayGetCell(arrayWeaponBaseWeapon, lArrayId)
+
+	while((lWeaponId = getUserWeaponByDefaultId(id, lBaseWeaponId)) == true)
+	{
+		stripUserWeapon(id, lWeaponId, lBaseWeaponId)
+	}
+
+	get_weaponname(lBaseWeaponId, lBaseWeaponName, charsmax(lBaseWeaponName))
+
 
 	if(give_item(id, lBaseWeaponName))
 	{
@@ -531,6 +593,99 @@ giveUserWeapon(id, weaponId)
 		log_amx("[GIVEUSERWEAPON] Could not give weapon with command: ^"give_item(%d, %s)^"", id, lBaseWeaponName)
 		return false
 	}
+}
+
+/* From stripweapons.inc, by ConnorMcLeod
+ * http://forums.alliedmods.net/showpost.php?p=1109747&postcount=42
+ *
+ * Strips a player's weapon based on weapon index.
+ *
+ * @param id:				Player id
+ * @param iCswId:			Weapon CSW_* index
+ * @param iSlot:			Inventory slot (Leave 0 if not sure)
+ * @param bSwitchIfActive:	Switch weapon if currently deployed
+ * @return:	1 on success, otherwise 0
+ *
+ * Ex: 	ham_strip_user_weapon(id, CSW_M4A1); 	// Strips m4a1 if user has one.
+ * 		ham_strip_user_weapon(id, CSW_HEGRENADE, _, false);		// Strips HE grenade if user has one 
+ *																// without switching weapons.
+*/
+stock ham_strip_user_weapon(id, iCswId, iSlot = 0, bool:bSwitchIfActive = true)
+{
+	new iWeapon
+	if( !iSlot )
+	{
+		static const iWeaponsSlots[] = {
+			-1,
+			2, //CSW_P228
+			-1,
+			1, //CSW_SCOUT
+			4, //CSW_HEGRENADE
+			1, //CSW_XM1014
+			5, //CSW_C4
+			1, //CSW_MAC10
+			1, //CSW_AUG
+			4, //CSW_SMOKEGRENADE
+			2, //CSW_ELITE
+			2, //CSW_FIVESEVEN
+			1, //CSW_UMP45
+			1, //CSW_SG550
+			1, //CSW_GALIL
+			1, //CSW_FAMAS
+			2, //CSW_USP
+			2, //CSW_GLOCK18
+			1, //CSW_AWP
+			1, //CSW_MP5NAVY
+			1, //CSW_M249
+			1, //CSW_M3
+			1, //CSW_M4A1
+			1, //CSW_TMP
+			1, //CSW_G3SG1
+			4, //CSW_FLASHBANG
+			2, //CSW_DEAGLE
+			1, //CSW_SG552
+			1, //CSW_AK47
+			3, //CSW_KNIFE
+			1 //CSW_P90
+		}
+		iSlot = iWeaponsSlots[iCswId]
+	}
+
+	const XTRA_OFS_PLAYER = 5
+	const m_rgpPlayerItems_Slot0 = 367
+
+	iWeapon = get_pdata_cbase(id, m_rgpPlayerItems_Slot0 + iSlot, XTRA_OFS_PLAYER)
+
+	const XTRA_OFS_WEAPON = 4
+	const m_pNext = 42
+	const m_iId = 43
+
+	while( iWeapon > 0 )
+	{
+		if( get_pdata_int(iWeapon, m_iId, XTRA_OFS_WEAPON) == iCswId )
+		{
+			break
+		}
+		iWeapon = get_pdata_cbase(iWeapon, m_pNext, XTRA_OFS_WEAPON)
+	}
+
+	if( iWeapon > 0 )
+	{
+		const m_pActiveItem = 373
+		if( bSwitchIfActive && get_pdata_cbase(id, m_pActiveItem, XTRA_OFS_PLAYER) == iWeapon )
+		{
+			ExecuteHamB(Ham_Weapon_RetireWeapon, iWeapon)
+		}
+
+		if( ExecuteHamB(Ham_RemovePlayerItem, id, iWeapon) )
+		{
+			user_has_weapon(id, iCswId, 0)
+			ExecuteHamB(Ham_Item_Kill, iWeapon)
+			return 1
+		}
+	}
+
+	return 0
 }
 
 /* AMXX-Studio Notes - DO NOT MODIFY BELOW HERE
