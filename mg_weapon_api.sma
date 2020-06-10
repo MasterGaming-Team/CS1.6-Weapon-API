@@ -37,6 +37,12 @@ new const gWeaponNumberInSlot[] =
 	2, 2, 7, 4, 5, 6, 11, 3, 2, 1, 10, 1, 1, 8
 }
 
+new const gWeaponFlags[] = 
+{
+	0, 0, 0, 0, (MGW_FLAG_EXHAUSTIBLE|MGW_FLAG_LIMITINWORLD), 0, (MGW_FLAG_EXHAUSTIBLE|MGW_FLAG_LIMITINWORLD), 0, 0, (MGW_FLAG_EXHAUSTIBLE|MGW_FLAG_LIMITINWORLD), 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, (MGW_FLAG_EXHAUSTIBLE|MGW_FLAG_LIMITINWORLD), 0, 0, 0, 0, 0
+}
+
 new Array:arrayWeaponId							// MGW_* see mg_weapon_api_const.inc
 new Array:arrayWeaponViewModel					// The view model of the weapon
 new Array:arrayWeaponPlayerModel				// The outer model of the weapon
@@ -54,7 +60,7 @@ new Array:arrayWeaponFlags						// Weapon flags, see mg_weapon_api_const.inc(MGW
 new Array:arrayWeaponExPrimSpeed				// The time delay between primary attacks
 new Array:arrayWeaponExSecSpeed					// The time delay between secondary attacks
 new Array:arrayWeaponExDamage					// The regular done by the weapon
-new Array:arrayweaponExRecoil					// The recoil rate of the weapon
+new Array:arrayWeaponExRecoil					// The recoil rate of the weapon
 new Array:arrayWeaponExReloadTime				// The time needed to reload with this weapon
 new Array:arrayWeaponExPrimaryAmmoType			// Primary ammo type, see MGW_AMNMO_* in mg_weapon_api_const.inc
 new Array:arrayWeaponExPrimaryAmmoBPMax			// Maximum carriable primary ammo
@@ -72,6 +78,8 @@ new Trie:trieDefaultWeaponIdList				// Using trie for faster string search(get t
 
 new gUserWeapons[33][MGW_BITFIELDCOUNT]
 
+new gMsgWeaponList
+
 new gForwardWeaponUserWeaponGet, gForwardWeaponUserWeaponLost
 
 public plugin_init()
@@ -79,6 +87,8 @@ public plugin_init()
 	register_plugin(PLUGIN, VERSION, AUTHOR)
 	
 	register_forward(FM_SetModel, "fwFmSetModel")
+
+	gMsgWeaponList = get_user_msgid("WeaponList")
 
 	gForwardWeaponUserWeaponGet = CreateMultiForward("mg_fw_weapon_user_weapon_get", ET_CONTINUE, FP_CELL, FP_CELL)
 	gForwardWeaponUserWeaponLost = CreateMultiForward("mg_fw_weapon_user_weapon_lost", ET_CONTINUE, FP_CELL, FP_CELL)
@@ -103,7 +113,7 @@ public plugin_precache()
 	arrayWeaponExPrimSpeed = ArrayCreate(1)
 	arrayWeaponExSecSpeed = ArrayCreate(1)
 	arrayWeaponExDamage = ArrayCreate(1)
-	arrayweaponExRecoil = ArrayCreate(1)
+	arrayWeaponExRecoil = ArrayCreate(1)
 	arrayWeaponExReloadTime = ArrayCreate(1)
 	arrayWeaponExPrimaryAmmoType = ArrayCreate(1)
 	arrayWeaponExPrimaryAmmoBPMax = ArrayCreate(1)
@@ -187,6 +197,7 @@ public plugin_natives()
 	register_native("mg_weapon_user_get_arrayhandler", "native_weapon_user_get_arrayhandler")
 	register_native("mg_weapon_user_give", "native_weapon_user_give")
 	register_native("mg_weapon_user_strip", "native_weapon_user_strip")
+	register_native("mg_weapon_user_strip_all", "native_weapon_user_strip_all")
 }
 
 public native_weapon_register(plugin_id, param_num)
@@ -215,6 +226,12 @@ public native_weapon_register(plugin_id, param_num)
 	lWeaponAnimShift = get_param(12)
 	lWeaponFlags = get_param(13)
 
+	if(equal(lWeaponSprite, "none"))
+		get_weaponname(lWeaponBaseWeapon, lWeaponSprite, charsmax(lWeaponSprite))
+	
+	if(lWeaponFlags == -1)
+		lWeaponFlags = gWeaponFlags[lWeaponBaseWeapon]
+
 	ArrayPushCell(arrayWeaponId, lWeaponId)
 	ArrayPushString(arrayWeaponViewModel, lWeaponViewModel)
 	ArrayPushString(arrayWeaponPlayerModel, lWeaponPlayerModel)
@@ -234,8 +251,8 @@ public native_weapon_register(plugin_id, param_num)
 	ArrayPushCell(arrayWeaponExDamage, -1.0)
 	ArrayPushCell(arrayWeaponExRecoil, -1.0)
 	ArrayPushCell(arrayWeaponExReloadTime, -1.0)
-	ArrayPushCell(arrayWeaponExPrimaryAmmoType, -1)
-	ArrayPushCell(arrayWeaponExPrimaryAmmoBPMax, -1)
+	ArrayPushCell(arrayWeaponExPrimaryAmmoType, gWeaponAmmoIdList[lWeaponBaseWeapon])
+	ArrayPushCell(arrayWeaponExPrimaryAmmoBPMax, gWeaponMaxAmmoList[lWeaponBaseWeapon])
 	ArrayPushCell(arrayWeaponExPrimaryAmmoClip, -1)
 	ArrayPushCell(arrayWeaponExSecondaryAmmoType, -1)
 	ArrayPushCell(arrayWeaponExSecondaryAmmoBPMax, -1)
@@ -250,13 +267,13 @@ public native_weapon_registerex(plugin_id, param_num)
 	new lWeaponId = get_param(1)
 	new lArrayId = ArrayFindValue(arrayWeaponId, lWeaponId)
 
-	if(lArradId == -1)
+	if(lArrayId == -1)
 	{
 		log_amx("[REGISTEREXTRA] Weapon was not found! (%d)", lWeaponId)
 		return false
 	}
 
-	new Float:lWeaponExPrimSpeed, FLoat:lWeaponExSecSpeed, Float:lWeaponExDamage, Float:lWeaponExRecoil, Float:lWeaponReloadTime
+	new Float:lWeaponExPrimSpeed, Float:lWeaponExSecSpeed, Float:lWeaponExDamage, Float:lWeaponExRecoil, Float:lWeaponExReloadTime
 	new lWeaponExPrimaryAmmoType, lWeaponExPrimaryAmmoBPMax, lWeaponExPrimaryAmmoClip
 	new lWeaponExSecondaryAmmoType, lWeaponExSecondaryAmmoBPMax
 
@@ -264,12 +281,20 @@ public native_weapon_registerex(plugin_id, param_num)
 	lWeaponExSecSpeed = get_param_f(3)
 	lWeaponExDamage = get_param_f(4)
 	lWeaponExRecoil = get_param_f(5)
-	lWeaponReloadTime = get_param_f(6)
+	lWeaponExReloadTime = get_param_f(6)
 	lWeaponExPrimaryAmmoType = get_param(7)
 	lWeaponExPrimaryAmmoBPMax = get_param(8)
 	lWeaponExPrimaryAmmoClip = get_param(9)
 	lWeaponExSecondaryAmmoType = get_param(10)
 	lWeaponExSecondaryAmmoBPMax = get_param(11)
+
+	new lBaseWeaponId = ArrayGetCell(arrayWeaponBaseWeapon, lArrayId)
+
+	if(lWeaponExPrimaryAmmoType == -1)
+		lWeaponExPrimaryAmmoType = gWeaponAmmoIdList[lBaseWeaponId]
+	
+	if(lWeaponExPrimaryAmmoBPMax == -1)
+		lWeaponExPrimaryAmmoBPMax = gWeaponMaxAmmoList[lBaseWeaponId]
 
 	ArraySetCell(arrayWeaponExPrimSpeed, lArrayId, lWeaponExPrimSpeed)
 	ArraySetCell(arrayWeaponExSecSpeed, lArrayId, lWeaponExSecSpeed)
@@ -290,7 +315,7 @@ public native_weapon_registersfx(plugin_id, param_num)
 	new lWeaponId = get_param(1)
 	new lArrayId = ArrayFindValue(arrayWeaponId, lWeaponId)
 
-	if(lArradId == -1)
+	if(lArrayId == -1)
 	{
 		log_amx("[REGISTERSFX] Weapon was not found! (%d)", lWeaponId)
 		return false
@@ -298,8 +323,8 @@ public native_weapon_registersfx(plugin_id, param_num)
 
 	new lWeaponSfxPrimAttack, lWeaponSfxSecAttack
 
-	lWeaponSfxPrimAttack = get_array(2)
-	lWeaponSfxSecAttack = get_array(3)
+	lWeaponSfxPrimAttack = get_param(2)
+	lWeaponSfxSecAttack = get_param(3)
 
 	ArraySetCell(arrayWeaponSfxPrimAttack, lArrayId, lWeaponSfxPrimAttack)
 	ArraySetCell(arrayWeaponSfxSecAttack, lArrayId, lWeaponSfxSecAttack)
@@ -373,17 +398,34 @@ public native_weapon_user_strip(plugin_id, param_num)
 	return true
 }
 
+public native_weapon_user_strip_all(plugin_id, param_num)
+{
+	new id = get_param(id)
+
+	if(!is_user_alive(id))
+		return false
+
+	new lArraySize = ArraySize(arrayUserWeaponList[id])
+
+	for(new i; i < lArraySize; i++)
+	{
+		stripUserWeapon(id, i)
+	}
+
+	return true
+}
+
 public fwFmSetModel(ent, model[])
 {
 	static lClassName[32]
-	lClassName = EOS
+	lClassName[0] = EOS
 
 	entity_get_string(ent, EV_SZ_classname, lClassName, charsmax(lClassName))
 
 	if(!equal(lClassName, "weaponbox"))
 		return FMRES_IGNORED
 
-	static lWeapon
+	static lWeaponEnt
 
 	TrieGetString(trieDefaultWeaponModelList, model, lClassName, charsmax(lClassName))
 
@@ -402,7 +444,7 @@ public fwFmSetModel(ent, model[])
 	lWeaponWorldModel[0] = EOS
 	
 	TrieGetCell(trieDefaultWeaponIdList, lClassName, lBaseWeaponId)
-	lWeaponId = getUserWeaponByDefaultId(id, lBaseWeaponId)
+	lWeaponId = getUserWeaponByDefaultId(lOwner, lBaseWeaponId)
 
 	if(lWeaponId == MGW_INVALID)
 		return FMRES_IGNORED
@@ -416,11 +458,11 @@ public fwFmSetModel(ent, model[])
 		return FMRES_IGNORED
 	}
 
-	ArrayGetString(arrayWeaponWorldModel, ArrayFindValue(arrayWeaponId, lWeaponId))
+	ArrayGetString(arrayWeaponWorldModel, lArrayId, lWeaponWorldModel, charsmax(lWeaponWorldModel))
 
 	entity_set_int(lWeaponEnt, EV_INT_impulse, lWeaponId)
-	entity_set_model(ent, arrayWeaponWorldModel)
-	entity_set_int(ent, ArrayGetCell(arrayWeaponWorldBody, lArrayId))
+	entity_set_model(ent, lWeaponWorldModel)
+	entity_set_int(ent, EV_INT_body, ArrayGetCell(arrayWeaponWorldBody, lArrayId))
 
 	removeUserWeaponData(lOwner, lWeaponId)
 
@@ -442,7 +484,7 @@ public client_disconnected(id)
 getUserCurrentWeapon(id)
 {
 	new lCurrentBaseWeapon = get_user_weapon(id)
-	new lArraySize = ArraySize(arrayUserWeaponList)
+	new lArraySize = ArraySize(arrayUserWeaponList[id])
 
 	for(new i; i < lArraySize; i++)
 	{
@@ -460,7 +502,7 @@ userHasWeapon(id, weaponId)
 
 getUserWeaponByDefaultId(id, baseWeaponId)
 {
-	new lArraySize = arrayUserWeaponList[id]
+	new lArraySize = ArraySize(arrayUserWeaponList[id])
 
 	new lWeaponId
 
@@ -480,14 +522,12 @@ removeUserWeaponData(id, weaponId)
 	if(!is_user_connected(id))
 		return false
 	
-	static lArrayId
+	static lArrayId, retValue
 
 	lArrayId = ArrayFindValue(arrayWeaponId, weaponId)
 
 	if(lArrayId == -1 && gUserWeapons[id][weaponId/32] & (1<<(weaponId % 32)))
-	{
 		log_amx("[REMOVEWEAPONDATA] !!WARNING!! Weapon dynamic array and weapon list are not synchronized!! (%d)", weaponId)
-	}
 	
 	ExecuteForward(gForwardWeaponUserWeaponLost, retValue, id, weaponId)
 
@@ -518,7 +558,7 @@ stripUserWeapon(id, weaponId, baseWeaponId = CSW_NONE)
 		}
 	}
 
-	if(baseWeaponId == CSW_NONe)
+	if(baseWeaponId == CSW_NONE)
 		baseWeaponId = ArrayGetCell(arrayWeaponBaseWeapon, weaponId)
 	
 	ham_strip_user_weapon(id, baseWeaponId)
@@ -558,7 +598,7 @@ giveUserWeapon(id, weaponId)
 	if(!is_user_alive(id))
 		return false
 	
-	if(userHasWeapon(id weaponId))
+	if(userHasWeapon(id, weaponId))
 		return false
 	
 	new lArrayId = ArrayGetCell(arrayWeaponId, weaponId)
@@ -572,17 +612,17 @@ giveUserWeapon(id, weaponId)
 	new lBaseWeaponId, lWeaponId, lBaseWeaponName[32]
 	lBaseWeaponId = ArrayGetCell(arrayWeaponBaseWeapon, lArrayId)
 
-	while((lWeaponId = getUserWeaponByDefaultId(id, lBaseWeaponId)) == true)
+	while((lWeaponId = getUserWeaponByDefaultId(id, lBaseWeaponId)))
 	{
 		stripUserWeapon(id, lWeaponId, lBaseWeaponId)
 	}
 
 	get_weaponname(lBaseWeaponId, lBaseWeaponName, charsmax(lBaseWeaponName))
 
-
 	if(give_item(id, lBaseWeaponName))
 	{
 		setUserWeaponData(id, weaponId)
+		setUserWeaponSprite(id, weaponId)
 		return true
 	}
 	else
@@ -590,6 +630,38 @@ giveUserWeapon(id, weaponId)
 		log_amx("[GIVEUSERWEAPON] Could not give weapon with command: ^"give_item(%d, %s)^"", id, lBaseWeaponName)
 		return false
 	}
+}
+
+setUserWeaponSprite(id, weaponId)
+{
+	new lArrayId = ArrayFindValue(arrayWeaponId, weaponId)
+
+	if(lArrayId == -1)
+	{
+		log_amx("[SETWEAPONSPRITE] Weapon's not registered! (%d)", weaponId)
+		return false
+	}
+
+	new lWeaponSprite[64], lBaseWeaponId
+
+	ArrayGetString(arrayWeaponSprite, lArrayId, lWeaponSprite, charsmax(lWeaponSprite))
+	lBaseWeaponId = ArrayGetCell(arrayWeaponBaseWeapon, lArrayId)
+
+	message_begin(MSG_ONE, gMsgWeaponList, {0, 0, 0}, id)
+	{
+		write_string(lWeaponSprite)											// WeaponName
+		write_byte(ArrayGetCell(arrayWeaponExPrimaryAmmoType, lArrayId))	// PrimaryAmmoID
+		write_byte(ArrayGetCell(arrayWeaponExPrimaryAmmoBPMax, lArrayId))	// PrimaryAmmoMaxAmount
+		write_byte(ArrayGetCell(arrayWeaponExSecondaryAmmoType, lArrayId))	// SecondaryAmmoID
+		write_byte(ArrayGetCell(arrayWeaponExSecondaryAmmoBPMax, lArrayId))	// SecondaryAmmoMaxAmount
+		write_byte(gWeaponSlotId[lBaseWeaponId])							// SlotID (0...N)
+		write_byte(gWeaponNumberInSlot[lBaseWeaponId])						// NumberInSlot (1...N)
+		write_byte(lBaseWeaponId)											// WeaponID
+		write_byte(ArrayGetCell(arrayWeaponFlags, lArrayId))				// Flags
+	}
+	message_end()
+
+	return true
 }
 
 /* From stripweapons.inc, by ConnorMcLeod

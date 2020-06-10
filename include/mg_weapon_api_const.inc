@@ -137,6 +137,12 @@
 #define MGW_INFINITYRED				129
 #define MGW_LAST_WEAPON				MGW_INFINITYRED
 #define MGW_BITFIELDCOUNT			(MGW_LAST_WEAPON/32)+1
+
+#define MGW_FLAG_SELECTONEMPTY		(1<<0)
+#define MGW_FLAG_NOAUTORELOAD 		(1<<1)
+#define MGW_FLAG_NOAUTOSWITCHEMPTY	(1<<2)
+#define MGW_FLAG_LIMITINWORLD		(1<<3)
+#define MGW_FLAG_EXHAUSTIBLE		(1<<4)
 // Continue with machine guns, CSO weapons(https://cso.fandom.com/wiki/Weapons)
 
 /* AMXX-Studio Notes - DO NOT MODIFY BELOW HERE

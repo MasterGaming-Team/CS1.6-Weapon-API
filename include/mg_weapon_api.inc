@@ -47,7 +47,7 @@ native mg_weapon_register(weaponId, const viewModel[], const playerModel[], cons
  *
  * @return                          False if weapon was not registered before.
  */
-native mg_weapon_registerex(weaponId, Float:primSpeed = 1.0, Float:secSpeed = 1.0, Float:damage = -1.0, Float:recoil = 1.0, Float:reloadTime = -1.0,
+native mg_weapon_registerex(weaponId, Float:primSpeed = -1.0, Float:secSpeed = -1.0, Float:damage = -1.0, Float:recoil = -1.0, Float:reloadTime = -1.0,
             priAmType = -1, PriAmBPMax = -1, priAmClip = -1, secAmType = -1, secAmBPMax = -1);
 
 /*
