@@ -59,8 +59,8 @@ new Array:arrayWeaponExPrimaryAmmoClip			// Max primary clip ammo
 new Array:arrayWeaponExSecondaryAmmoType		// Secondary ammo type, see MGW_AMNMO_* in mg_weapon_api_const.inc
 new Array:arrayWeaponExSecondaryAmmoBPMax		// Maximum carriable secondary ammo
 
-new Array:arrayWeaponSfxPrimAttack				// Primary attack sfx list[This contains array ids!!!]
-new Array:arrayWeaponSfxSecAttack				// Secondary attack sfx list[This contains array ids!!!]
+new Array:arrayWeaponSfxPrimAttack				// Primary attack sfx list
+new Array:arrayWeaponSfxSecAttack				// Secondary attack sfx list
 
 new Array:arrayUserWeaponList[33]
 
@@ -93,7 +93,7 @@ public plugin_precache()
 	arrayWeaponFlags = ArrayCreate(1)
 
 	arrayWeaponExSpeed = ArrayCreate(1)
-	arrayWeaponExDamage = ArrayCreate(1)
+	arrayWeaponExDamage8 = ArrayCreate(1)
 	arrayweaponExRecoil = ArrayCreate(1)
 	arrayWeaponExReloadTime = ArrayCreate(1)
 	arrayWeaponExPrimaryAmmoType = ArrayCreate(1)
@@ -101,9 +101,6 @@ public plugin_precache()
 	arrayWeaponExPrimaryAmmoClip = ArrayCreate(1)
 	arrayWeaponExSecondaryAmmoType = ArrayCreate(1)
 	arrayWeaponExSecondaryAmmoBPMax = ArrayCreate(1)
-
-	arrayWeaponSfxPrimAttack = ArrayCreate(1)
-	arrayWeaponSfxSecAttack = ArrayCreate(1)
 
 	trieDefaultWeaponModelList = TrieCreate()
 	trieDefaultWeaponIdList = TrieCreate()
@@ -217,77 +214,14 @@ public native_weapon_register(plugin_id, param_num)
 	ArrayPushCell(arrayWeaponAnimShift, lWeaponAnimShift)
 	ArrayPushCell(arrayWeaponFlags, lWeaponFlags)
 	// For safety we set all the other arrays to zero
-	ArrayPushCell(arrayWeaponExSpeed, 0.0)
-	ArrayPushCell(arrayWeaponExDamage, 0.0)
-	ArrayPushCell(arrayWeaponExRecoil, 0.0)
-	ArrayPushCell(arrayWeaponExReloadTime, 0.0)
-	ArrayPushCell(arrayWeaponExPrimaryAmmoType, 0)
-	ArrayPushCell(arrayWeaponExPrimaryAmmoBPMax, 0)
-	ArrayPushCell(arrayWeaponExPrimaryAmmoClip, 0)
-	ArrayPushCell(arrayWeaponExSecondaryAmmoType, 0)
-	ArrayPushCell(arrayWeaponExSecondaryAmmoBPMax, 0)
-	ArrayPushCell(arrayWeaponSfxPrimAttack, 0)
-	ArrayPushCell(arrayWeaponSfxSecAttack, 0)
+	arraypush
 
 	return true
 }
 
 public native_weapon_registerex(plugin_id, param_num)
 {
-	new lWeaponId = get_param(1)
-	new lArrayId = ArrayFindValue(arrayWeaponId, lWeaponId)
-
-	if(lArradId == -1)
-	{
-		log_amx("[REGISTEREXTRA] weapon was not found! (%d)", lWeaponId)
-		return false
-	}
-
-	new Float:lWeaponExSpeed, Float:lWeaponExDamage, Float:lWeaponExRecoil, Float:lWeaponReloadTime
-	new lWeaponExPrimaryAmmoType, lWeaponExPrimaryAmmoBPMax, lWeaponExPrimaryAmmoClip
-	new lWeaponExSecondaryAmmoType, lWeaponExSecondaryAmmoBPMax
-
-	lWeaponExSpeed = get_param_f(2)
-	lWeaponExDamage = get_param_f(3)
-	lWeaponExRecoil = get_param_f(4)
-	lWeaponReloadTime = get_param_f(5)
-	lWeaponExPrimaryAmmoType = get_param(6)
-	lWeaponExPrimaryAmmoBPMax = get_param(7)
-	lWeaponExPrimaryAmmoClip = get_param(8)
-	lWeaponExSecondaryAmmoType = get_param(9)
-	lWeaponExSecondaryAmmoBPMax = get_param(10)
-
-	ArraySetCell(arrayWeaponExSpeed, lArrayId, lWeaponExSpeed)
-	ArraySetCell(arrayWeaponExDamage, lArrayId, lWeaponExDamage)
-	ArraySetCell(arrayWeaponExRecoil, lArrayId, lWeaponExRecoil)
-	ArraySetCell(arrayWeaponExReloadTime, lArrayId, lWeaponExReloadTime)
-	ArraySetCell(arrayWeaponExPrimaryAmmoType, lArrayId, lWeaponExPrimaryAmmoType)
-	ArraySetCell(arrayWeaponExPrimaryAmmoBPMax, lArrayId, lWeaponExPrimaryAmmoBPMax)
-	ArraySetCell(arrayWeaponExPrimaryAmmoClip, lArrayId, lWeaponExPrimaryAmmoClip)
-	ArraySetCell(arrayWeaponExSecondaryAmmoType, lArrayId, lWeaponExSecondaryAmmoType)
-	ArraySetCell(arrayWeaponExSecondaryAmmoBPMax, lArrayId, lWeaponExSecondaryAmmoBPMax)
-
-	return true
-}
-
-public native_weapon_registersfx(plugin_id, param_num)
-{
-	new lWeaponId = get_param(1)
-	new lArrayId = ArrayFindValue(arrayWeaponId, lWeaponId)
-
-	if(lArradId == -1)
-	{
-		log_amx("[REGISTEREXTRA] weapon was not found! (%d)", lWeaponId)
-		return false
-	}
-
-	new lWeaponSfxPrimAttack, lWeaponSfxSecAttack
-
-	lWeaponSfxPrimAttack = get_array(2)
-	lWeaponSfxSecAttack = get_array(3)
-
-	ArraySetCell(arrayWeaponSfxPrimAttack, lArrayId, lWeaponSfxPrimAttack)
-	ArraySetCell(arrayWeaponSfxSecAttack, lArrayId, lWeaponSfxSecAttack)
+	new lWeaponId, 
 }
 
 public native_weapon_user_has(plugin_id, param_num)
