@@ -75,6 +75,7 @@ new Array:arrayUserWeaponList[33]
 
 new Trie:trieDefaultWeaponModelList				// Using trie for faster string search(get the classname by model)
 new Trie:trieDefaultWeaponIdList				// Using trie for faster string search(get the class id by classname)
+new Trie:trieWeaponSpriteList					// Using trie for faster string search(get the defweapon name by sprite name)
 
 new gUserWeapons[33][MGW_BITFIELDCOUNT]
 
@@ -258,6 +259,11 @@ public native_weapon_register(plugin_id, param_num)
 	ArrayPushCell(arrayWeaponExSecondaryAmmoBPMax, -1)
 	ArrayPushCell(arrayWeaponSfxPrimAttack, -1)
 	ArrayPushCell(arrayWeaponSfxSecAttack, -1)
+
+	new lBaseWeaponName[32]
+	get_weaponname(lBaseWeaponId, lBaseWeaponName, charsmax(lBaseWeaponName))
+
+	TrieSetString(trieWeaponSpriteList, lWeaponSprite, lBaseWeaponName)
 
 	return true
 }
@@ -486,20 +492,17 @@ public client_command(id)
 	if(!is_user_alive(id))
 		return PLUGIN_CONTINUE
 	
-	static lCommand[64], lArrayId
+	static lCommand[64], lBaseWeaponName[32]
 	read_argv(0, lCommand, charsmax(lCommand))
 	remove_quotes(lCommand)
 	
-	lArrayId = ArrayFindString(arrayWeaponSprite, lCommand)
-	
-	if(lArrayId == -1)
-		return PLUGIN_CONTINUE
-	
-	if(!userHasWeapon(id, ArrayGetCell(arrayWeaponId, lArrayId)))
-		return PLUGIN_CONTINUE
-	
-	engclient_cmd(id, gWeaponNameList[ArrayGetCell(arrayUserWeaponId[id], lArrayId)])
-	return PLUGIN_HANDLED
+	if(TrieGetString(trieWeaponSpriteList, lCommand, lBaseWeaponName, charsmax(lBaseWeaponName)))
+	{
+		engclient_cmd(id, lBaseWeaponName)
+		return PLUGIN_HANDLED
+	}
+
+	return PLUGIN_CONTINUE
 }
 
 getUserCurrentWeapon(id)
